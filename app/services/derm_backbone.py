@@ -4,7 +4,6 @@ from typing import Tuple
 import numpy as np
 import tensorflow as tf
 from huggingface_hub import snapshot_download
-
 from app.services.preprocessing import image_bytes_to_tf_string_tensor
 
 
@@ -22,6 +21,7 @@ class DermFoundationBackbone:
         local_files_only: bool = False,
         image_size: int = 448,
     ) -> None:
+
         self.repo_id = repo_id
         self.image_size: Tuple[int, int] = (image_size, image_size)
 
