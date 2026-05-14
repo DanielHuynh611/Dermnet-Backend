@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+huggingface_hub
+tensorflow
+torch
+pillow
+numpy
