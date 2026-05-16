@@ -1,31 +1,14 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.schemas import PredictionResponse
-from app.services.predictor import TwoStageDermPredictor
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.predictor = TwoStageDermPredictor(
-        derm_model_id=settings.derm_model_id,
-        head_checkpoint_path=str(settings.head_checkpoint_path),
-        hf_token=settings.hf_token,
-        local_files_only=settings.local_files_only,
-        image_size=settings.image_size,
-        device_name=settings.device,
-    )
-    yield
 
 
 app = FastAPI(
     title="Derm Foundation Classifier API",
     description="Derm Foundation embedding backbone + PyTorch MLP head.",
     version="1.0.0",
-    lifespan=lifespan,
 )
 
 
@@ -36,6 +19,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.state.predictor = None
+
+
+def get_predictor():
+    if app.state.predictor is None:
+        print("Loading TwoStageDermPredictor...", flush=True)
+
+        from app.services.predictor import TwoStageDermPredictor
+
+        app.state.predictor = TwoStageDermPredictor(
+            derm_model_id=settings.derm_model_id,
+            head_checkpoint_path=str(settings.head_checkpoint_path),
+            hf_token=settings.hf_token,
+            local_files_only=settings.local_files_only,
+            image_size=settings.image_size,
+            device_name=settings.device,
+        )
+
+        print("TwoStageDermPredictor loaded.", flush=True)
+
+    return app.state.predictor
+
+
+@app.get("/")
+def root():
+    return {"message": "Derm Foundation API is running"}
 
 
 @app.get("/health")
@@ -54,6 +65,7 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Uploaded image is empty.")
 
     try:
-        return app.state.predictor.predict(image_bytes)
+        predictor = get_predictor()
+        return predictor.predict(image_bytes)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
